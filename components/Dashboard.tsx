@@ -10,7 +10,11 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ coins, livePrices, onCoinSelect }) => {
-  const topGainers = [...coins].sort((a, b) => b.change24h - a.change24h).slice(0, 8);
+  const topGainers = [...coins].sort((a, b) => (b.change24h ?? 0) - (a.change24h ?? 0)).slice(0, 8);
+
+  const avgChange = coins.length > 0 
+    ? coins.reduce((acc, c) => acc + (c.change24h ?? 0), 0) / coins.length 
+    : 0;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -53,7 +57,7 @@ const Dashboard: React.FC<DashboardProps> = ({ coins, livePrices, onCoinSelect }
             <span className="text-emerald-400">💰</span>
           </div>
           <div className="text-3xl font-bold tracking-tight mb-1 font-mono">
-            {([...coins].reduce((acc, c) => acc + c.change24h, 0) / coins.length).toFixed(1)}%
+            {(avgChange ?? 0).toFixed(1)}%
           </div>
           <div className="text-slate-500 text-sm">Past 24 hours trend</div>
         </div>
@@ -78,7 +82,8 @@ const Dashboard: React.FC<DashboardProps> = ({ coins, livePrices, onCoinSelect }
               </thead>
               <tbody className="divide-y divide-slate-800">
                 {topGainers.map(coin => {
-                  const currentPrice = livePrices[coin.id] || coin.price;
+                  const currentPrice = livePrices[coin.id] || coin.price || 0;
+                  const delta = coin.change24h ?? 0;
                   return (
                     <tr 
                       key={coin.id} 
@@ -98,14 +103,14 @@ const Dashboard: React.FC<DashboardProps> = ({ coins, livePrices, onCoinSelect }
                       </td>
                       <td className="px-6 py-4 text-right font-mono text-sm">
                         <span className="tabular-nums transition-all duration-300">
-                          ${currentPrice > 1 ? currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : currentPrice.toFixed(6)}
+                          ${currentPrice > 1 ? currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (currentPrice ?? 0).toFixed(6)}
                         </span>
                       </td>
-                      <td className={`px-6 py-4 text-right font-bold text-sm ${coin.change24h > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {coin.change24h > 0 ? '+' : ''}{coin.change24h.toFixed(2)}%
+                      <td className={`px-6 py-4 text-right font-bold text-sm ${delta > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {delta > 0 ? '+' : ''}{(delta ?? 0).toFixed(2)}%
                       </td>
                       <td className="px-6 py-4 text-right text-slate-500 text-xs font-mono uppercase">
-                        ${(coin.marketCap / 1e9).toFixed(2)}B
+                        ${((coin.marketCap ?? 0) / 1e9).toFixed(2)}B
                       </td>
                     </tr>
                   );
@@ -139,7 +144,7 @@ const Dashboard: React.FC<DashboardProps> = ({ coins, livePrices, onCoinSelect }
                   <div className="flex justify-between items-end">
                     <div>
                       <div className="text-[10px] text-slate-600 font-bold uppercase mb-0.5">Pulse Score</div>
-                      <div className="text-2xl font-black text-slate-200">{signal.score}<span className="text-xs text-slate-600 font-normal">/100</span></div>
+                      <div className="text-2xl font-black text-slate-200">{(signal.score ?? 0)}<span className="text-xs text-slate-600 font-normal">/100</span></div>
                     </div>
                     <button 
                       onClick={() => onCoinSelect(coin.id)}

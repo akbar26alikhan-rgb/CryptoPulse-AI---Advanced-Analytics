@@ -26,18 +26,18 @@ const MarketScanner: React.FC<MarketScannerProps> = ({ coins, livePrices, onCoin
     // Apply Tab Filtering
     switch (filter) {
       case 'breakouts':
-        result = result.filter(c => c.change24h > 5); // 5%+ gainers
+        result = result.filter(c => (c.change24h ?? 0) > 5); // 5%+ gainers
         break;
       case 'oversold':
         // Simulated RSI for demo purposes using a stable hash of the ID
         result = result.filter((_, i) => (30 + (i * 7) % 50) < 40);
         break;
       case 'volume':
-        const avgVol = result.reduce((acc, c) => acc + c.volume24h, 0) / result.length;
-        result = result.filter(c => c.volume24h > avgVol);
+        const avgVol = result.length > 0 ? result.reduce((acc, c) => acc + (c.volume24h ?? 0), 0) / result.length : 0;
+        result = result.filter(c => (c.volume24h ?? 0) > avgVol);
         break;
       case 'trend':
-        result = result.filter(c => c.change24h > 0);
+        result = result.filter(c => (c.change24h ?? 0) > 0);
         break;
       default:
         break;
@@ -110,7 +110,7 @@ const MarketScanner: React.FC<MarketScannerProps> = ({ coins, livePrices, onCoin
               <tbody className="divide-y divide-slate-800">
                 {processedCoins.map((coin, i) => {
                   const rsi = 30 + (i * 7) % 50;
-                  const isBullish = coin.change24h > 0;
+                  const isBullish = (coin.change24h ?? 0) > 0;
                   const currentPrice = livePrices[coin.id] || coin.price || 0;
 
                   return (
@@ -128,15 +128,15 @@ const MarketScanner: React.FC<MarketScannerProps> = ({ coins, livePrices, onCoin
                         </div>
                       </td>
                       <td className="px-6 py-5 text-right font-mono text-sm text-slate-300 tabular-nums">
-                        ${currentPrice > 1 ? currentPrice.toLocaleString(undefined, { maximumFractionDigits: 2 }) : currentPrice.toFixed(6)}
+                        ${currentPrice > 1 ? currentPrice.toLocaleString(undefined, { maximumFractionDigits: 2 }) : (currentPrice ?? 0).toFixed(6)}
                       </td>
                       <td className={`px-6 py-5 text-right font-bold text-sm ${isBullish ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {coin.change24h > 0 ? '+' : ''}{coin.change24h.toFixed(2)}%
+                        {(coin.change24h ?? 0) > 0 ? '+' : ''}{(coin.change24h ?? 0).toFixed(2)}%
                       </td>
                       <td className="px-6 py-5 text-right">
                         <div className="flex items-center justify-end gap-2">
                            <span className={`text-[10px] font-mono font-bold ${rsi > 70 ? 'text-rose-500' : rsi < 30 ? 'text-emerald-500' : 'text-slate-400'}`}>
-                             {rsi.toFixed(1)}
+                             {(rsi ?? 0).toFixed(1)}
                            </span>
                            <div className="w-12 h-1 bg-slate-800 rounded-full overflow-hidden">
                               <div className={`h-full bg-indigo-500`} style={{ width: `${rsi}%` }}></div>
@@ -144,7 +144,7 @@ const MarketScanner: React.FC<MarketScannerProps> = ({ coins, livePrices, onCoin
                         </div>
                       </td>
                       <td className="px-6 py-5 text-right text-xs font-mono text-slate-500 uppercase">
-                        ${(coin.marketCap / 1e9).toFixed(2)}B
+                        ${((coin.marketCap ?? 0) / 1e9).toFixed(2)}B
                       </td>
                       <td className="px-6 py-5 text-center">
                         <button 

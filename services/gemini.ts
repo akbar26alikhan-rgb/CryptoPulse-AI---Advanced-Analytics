@@ -16,10 +16,10 @@ export async function getSignalExplanation(coin: Coin, signal: CryptoSignal, ind
     Score: ${signal.score}/100
     
     Technical Context:
-    - RSI: ${indicators.rsi.toFixed(2)}
-    - EMA50: ${indicators.ema50.toFixed(2)}
-    - EMA200: ${indicators.ema200.toFixed(2)}
-    - ADX: ${indicators.adx}
+    - RSI: ${(indicators.rsi ?? 0).toFixed(2)}
+    - EMA50: ${(indicators.ema50 ?? 0).toFixed(2)}
+    - EMA200: ${(indicators.ema200 ?? 0).toFixed(2)}
+    - ADX: ${indicators.adx ?? 0}
     - Reasons given by system: ${signal.reasons.join(', ')}
     
     Provide a concise, human-friendly explanation of why this signal was generated, potential risks, and what to watch for. 

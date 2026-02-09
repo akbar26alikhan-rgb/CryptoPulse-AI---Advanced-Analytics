@@ -48,9 +48,9 @@ const Signals: React.FC<SignalsProps> = ({ coins, livePrices, onCoinSelect }) =>
         type: type,
         score: score,
         timeframe: '1h',
-        entryPrice: livePrices[coin.id] || coin.price,
-        stopLoss: (livePrices[coin.id] || coin.price) * 0.975,
-        targets: [(livePrices[coin.id] || coin.price) * 1.04, (livePrices[coin.id] || coin.price) * 1.09],
+        entryPrice: livePrices[coin.id] || coin.price || 0,
+        stopLoss: (livePrices[coin.id] || coin.price || 0) * 0.975,
+        targets: [(livePrices[coin.id] || coin.price || 0) * 1.04, (livePrices[coin.id] || coin.price || 0) * 1.09],
         reasons: ['Live Scan Match', 'RSI Divergence Check', 'High Vol Cluster']
       };
 
@@ -100,7 +100,7 @@ const Signals: React.FC<SignalsProps> = ({ coins, livePrices, onCoinSelect }) =>
         {activeSignals.map(signal => {
           const coin = coins.find(c => c.id === signal.coinId);
           if (!coin) return null;
-          const currentPrice = livePrices[coin.id] || coin.price;
+          const currentPrice = livePrices[coin.id] || coin.price || 0;
 
           return (
             <div 
@@ -133,13 +133,13 @@ const Signals: React.FC<SignalsProps> = ({ coins, livePrices, onCoinSelect }) =>
                   <div className="space-y-1">
                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Confidence Score</span>
                     <div className="text-5xl font-black text-white group-hover:text-indigo-400 transition-colors font-mono">
-                      {signal.score}<span className="text-lg text-slate-800 font-normal">/100</span>
+                      {(signal.score ?? 0)}<span className="text-lg text-slate-800 font-normal">/100</span>
                     </div>
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Live Price</span>
                     <div className="text-xl font-mono font-bold text-slate-200 tabular-nums">
-                      ${currentPrice > 1 ? currentPrice.toLocaleString(undefined, { maximumFractionDigits: 2 }) : currentPrice.toFixed(6)}
+                      ${currentPrice > 1 ? currentPrice.toLocaleString(undefined, { maximumFractionDigits: 2 }) : (currentPrice ?? 0).toFixed(6)}
                     </div>
                   </div>
                 </div>
@@ -147,11 +147,11 @@ const Signals: React.FC<SignalsProps> = ({ coins, livePrices, onCoinSelect }) =>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-slate-950 rounded-[2rem] border border-slate-800 shadow-inner">
                     <div className="text-[10px] font-black text-slate-600 uppercase mb-1.5 tracking-widest">Entry Zone</div>
-                    <div className="text-sm font-black text-slate-200 font-mono">${signal.entryPrice.toLocaleString()}</div>
+                    <div className="text-sm font-black text-slate-200 font-mono">${(signal.entryPrice ?? 0).toLocaleString()}</div>
                   </div>
                   <div className="p-4 bg-slate-950 rounded-[2rem] border border-rose-500/10 shadow-inner">
                     <div className="text-[10px] font-black text-rose-500/50 uppercase mb-1.5 tracking-widest">Hard Stop</div>
-                    <div className="text-sm font-black text-rose-500 font-mono">${signal.stopLoss.toLocaleString()}</div>
+                    <div className="text-sm font-black text-rose-500 font-mono">${(signal.stopLoss ?? 0).toLocaleString()}</div>
                   </div>
                 </div>
 
@@ -161,7 +161,7 @@ const Signals: React.FC<SignalsProps> = ({ coins, livePrices, onCoinSelect }) =>
                     {signal.targets.map((t, idx) => (
                       <div key={idx} className="flex-1 p-3 bg-emerald-500/5 rounded-2xl border border-emerald-500/10 text-center shadow-inner">
                         <div className="text-[9px] font-black text-emerald-500/40 uppercase tracking-tighter">TP {idx+1}</div>
-                        <div className="text-xs font-black text-emerald-500 font-mono">${t.toLocaleString()}</div>
+                        <div className="text-xs font-black text-emerald-500 font-mono">${(t ?? 0).toLocaleString()}</div>
                       </div>
                     ))}
                   </div>

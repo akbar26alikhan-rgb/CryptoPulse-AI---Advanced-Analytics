@@ -32,6 +32,7 @@ const Layout: React.FC<LayoutProps> = ({
   ];
 
   const formatLargeNumber = (num: number) => {
+    if (!num) return '$0.00';
     if (num >= 1e12) return `$${(num / 1e12).toFixed(2)}T`;
     if (num >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
     return `$${num.toLocaleString()}`;
@@ -116,7 +117,7 @@ const Layout: React.FC<LayoutProps> = ({
              <div className="flex gap-6 whitespace-nowrap">
                 <span className="text-slate-500">Global Cap: <span className="text-slate-200 font-mono text-xs">{globalStats ? formatLargeNumber(globalStats.totalCap) : '...'}</span></span>
                 <span className="text-slate-500">24h Vol: <span className="text-slate-200 font-mono text-xs">{globalStats ? formatLargeNumber(globalStats.totalVolume) : '...'}</span></span>
-                <span className="text-slate-500">BTC Dom: <span className="text-slate-200 font-mono text-xs">{globalStats ? globalStats.btcDominance.toFixed(1) : '...'}%</span></span>
+                <span className="text-slate-500">BTC Dom: <span className="text-slate-200 font-mono text-xs">{globalStats ? (globalStats.btcDominance ?? 0).toFixed(1) : '...'}%</span></span>
              </div>
           </div>
           <div className="flex items-center gap-4 flex-shrink-0">
