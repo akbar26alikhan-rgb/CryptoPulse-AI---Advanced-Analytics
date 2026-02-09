@@ -26,6 +26,12 @@ export interface Notification {
   type: 'info' | 'success' | 'alert';
 }
 
+export interface Holding {
+  coinId: string;
+  amount: number;
+  avgPrice: number;
+}
+
 function App() {
   const [activeView, setActiveView] = useState<View>('dashboard');
   const [selectedCoinId, setSelectedCoinId] = useState<string | null>(null);
@@ -35,6 +41,11 @@ function App() {
   const [globalStats, setGlobalStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
+  const [portfolio, setPortfolio] = useState<Holding[]>([
+    { coinId: 'bitcoin', amount: 0.25, avgPrice: 62000 },
+    { coinId: 'ethereum', amount: 4.5, avgPrice: 2450 },
+    { coinId: 'solana', amount: 25, avgPrice: 132 }
+  ]);
   
   const ws = useRef<WebSocket | null>(null);
 
@@ -112,6 +123,22 @@ function App() {
     }, 5000);
   };
 
+  const onAddToPortfolio = (holding: Holding) => {
+    setPortfolio(prev => {
+      const existing = prev.find(h => h.coinId === holding.coinId);
+      if (existing) {
+        return prev.map(h => h.coinId === holding.coinId ? {
+          ...h,
+          amount: h.amount + holding.amount,
+          avgPrice: (h.avgPrice * h.amount + holding.avgPrice * holding.amount) / (h.amount + holding.amount)
+        } : h);
+      }
+      return [...prev, holding];
+    });
+    const coin = coins.find(c => c.id === holding.coinId);
+    addNotification(`Deposited ${holding.amount} ${coin?.symbol || 'assets'} successfully`, 'success');
+  };
+
   // Alert Monitor
   useEffect(() => {
     alerts.forEach(alert => {
@@ -165,7 +192,7 @@ function App() {
           />
         ) : <Dashboard coins={coins} livePrices={livePrices} onCoinSelect={navigateToCoin} />;
       case 'portfolio':
-        return <Portfolio coins={coins} livePrices={livePrices} />;
+        return <Portfolio coins={coins} livePrices={livePrices} portfolio={portfolio} onAddHolding={onAddToPortfolio} />;
       default:
         return <Dashboard coins={coins} livePrices={livePrices} onCoinSelect={navigateToCoin} />;
     }

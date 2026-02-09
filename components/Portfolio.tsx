@@ -1,43 +1,74 @@
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { Coin } from '../types';
+import { Holding } from '../App';
 
 interface PortfolioProps {
   coins: Coin[];
   livePrices: Record<string, number>;
+  portfolio: Holding[];
+  onAddHolding: (holding: Holding) => void;
 }
 
-const Portfolio: React.FC<PortfolioProps> = ({ coins, livePrices }) => {
-  const holdings = coins.slice(0, 5).map((c, i) => {
-    const currentPrice = livePrices[c.id] || c.price;
-    return {
-      ...c,
-      price: currentPrice,
-      amount: (i + 1) * (1 / (i + 1)) * (c.symbol === 'BTC' ? 0.25 : 5),
-      avgPrice: c.price * 0.92,
-    };
-  });
+const Portfolio: React.FC<PortfolioProps> = ({ coins, livePrices, portfolio, onAddHolding }) => {
+  const [showModal, setShowModal] = useState(false);
+  const [selectedCoinId, setSelectedCoinId] = useState('');
+  const [amount, setAmount] = useState('');
+  const [buyPrice, setBuyPrice] = useState('');
+
+  const holdings = useMemo(() => {
+    return portfolio.map(h => {
+      const coinData = coins.find(c => c.id === h.coinId);
+      if (!coinData) return null;
+      const currentPrice = livePrices[h.coinId] || coinData.price || 0;
+      return {
+        ...coinData,
+        amount: h.amount,
+        avgPrice: h.avgPrice,
+        price: currentPrice
+      };
+    }).filter(Boolean) as (Coin & { amount: number, avgPrice: number })[];
+  }, [portfolio, coins, livePrices]);
 
   const totalValue = holdings.reduce((acc, h) => acc + (h.amount * h.price), 0);
   const totalCost = holdings.reduce((acc, h) => acc + (h.amount * h.avgPrice), 0);
   const profit = totalValue - totalCost;
-  const pnlPercent = (profit / totalCost) * 100;
+  const pnlPercent = totalCost > 0 ? (profit / totalCost) * 100 : 0;
+
+  const handleDeposit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCoinId || !amount || !buyPrice) return;
+    onAddHolding({
+      coinId: selectedCoinId,
+      amount: parseFloat(amount),
+      avgPrice: parseFloat(buyPrice)
+    });
+    setShowModal(false);
+    setSelectedCoinId('');
+    setAmount('');
+    setBuyPrice('');
+  };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Investment Portfolio</h1>
           <p className="text-slate-500 text-sm">Real-time valuation based on live market feeds.</p>
         </div>
         <div className="flex gap-3">
-          <button className="px-5 py-2.5 bg-slate-900 border border-slate-800 rounded-2xl text-xs font-bold uppercase tracking-widest text-slate-400">History</button>
-          <button className="px-5 py-2.5 bg-indigo-600 rounded-2xl text-xs font-bold uppercase tracking-widest shadow-lg shadow-indigo-600/30 transition-all">+ Deposit Assets</button>
+          <button className="px-5 py-2.5 bg-slate-900 border border-slate-800 rounded-2xl text-xs font-bold uppercase tracking-widest text-slate-400 transition-all hover:bg-slate-800">History</button>
+          <button 
+            onClick={() => setShowModal(true)}
+            className="px-5 py-2.5 bg-indigo-600 rounded-2xl text-xs font-bold uppercase tracking-widest shadow-lg shadow-indigo-600/30 transition-all hover:bg-indigo-500 active:scale-95"
+          >
+            + Deposit Assets
+          </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 relative overflow-hidden group">
+        <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 relative overflow-hidden group shadow-2xl">
           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
              <span className="text-8xl">💰</span>
           </div>
@@ -46,20 +77,26 @@ const Portfolio: React.FC<PortfolioProps> = ({ coins, livePrices }) => {
             ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <div className={`text-sm font-bold flex items-center gap-1 w-fit px-2 py-1 rounded-lg ${profit >= 0 ? 'text-emerald-500 bg-emerald-500/5' : 'text-rose-500 bg-rose-500/5'}`}>
-            {profit >= 0 ? '+' : ''}${profit.toLocaleString(undefined, { maximumFractionDigits: 0 })} ({pnlPercent.toFixed(1)}%)
+            {profit >= 0 ? '+' : ''}${Math.abs(profit).toLocaleString(undefined, { maximumFractionDigits: 2 })} ({pnlPercent.toFixed(1)}%)
           </div>
         </div>
 
-        <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800">
+        <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-xl">
           <div className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-3">24h Performance</div>
-          <div className="text-4xl font-black mb-2 text-emerald-500 font-mono">+1.24%</div>
-          <div className="text-slate-500 text-xs font-bold uppercase">Beating Market Cap Avg (0.8%)</div>
+          <div className={`text-4xl font-black mb-2 font-mono ${pnlPercent >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+            {pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(2)}%
+          </div>
+          <div className="text-slate-500 text-xs font-bold uppercase">Real-time delta from purchase</div>
         </div>
 
-        <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800">
+        <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-xl">
           <div className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-3">Risk Exposure</div>
-          <div className="text-4xl font-black mb-2 text-amber-500">MODERATE</div>
-          <div className="text-slate-500 text-xs font-bold uppercase tracking-wide">Pulse Diversification: 8.4 / 10</div>
+          <div className={`text-4xl font-black mb-2 ${holdings.length > 5 ? 'text-emerald-500' : 'text-amber-500'}`}>
+            {holdings.length > 5 ? 'LOW' : 'MODERATE'}
+          </div>
+          <div className="text-slate-500 text-xs font-bold uppercase tracking-wide">
+            {holdings.length} Unique Assets Indexed
+          </div>
         </div>
       </div>
 
@@ -68,57 +105,158 @@ const Portfolio: React.FC<PortfolioProps> = ({ coins, livePrices }) => {
           <h2 className="font-black text-sm uppercase tracking-widest">Active Holdings List</h2>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-slate-950/50 text-[10px] uppercase text-slate-500 font-black tracking-widest border-b border-slate-800">
-              <tr>
-                <th className="px-6 py-5">Asset</th>
-                <th className="px-6 py-5 text-right">Balance</th>
-                <th className="px-6 py-5 text-right">Value (USD)</th>
-                <th className="px-6 py-5 text-right">Avg Buy Price</th>
-                <th className="px-6 py-5 text-right">Profit / Loss</th>
-                <th className="px-6 py-5 text-right">Allocation</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800">
-              {holdings.map(h => (
-                <tr key={h.id} className="hover:bg-slate-800/30 transition-colors group">
-                  <td className="px-6 py-5">
-                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-slate-950 border border-slate-800 rounded-2xl flex items-center justify-center font-black text-[10px] text-indigo-400 group-hover:text-indigo-300">
-                          {h.symbol}
-                        </div>
-                        <div>
-                           <div className="font-bold text-slate-100">{h.name}</div>
-                           <div className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Wallet Account</div>
-                        </div>
-                     </div>
-                  </td>
-                  <td className="px-6 py-5 text-right font-mono text-sm">
-                    {h.amount.toLocaleString(undefined, { maximumFractionDigits: 4 })} <span className="text-xs text-slate-500">{h.symbol}</span>
-                  </td>
-                  <td className="px-6 py-5 text-right font-mono text-sm font-bold text-slate-200 tabular-nums">
-                    ${(h.amount * h.price).toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                  </td>
-                  <td className="px-6 py-5 text-right font-mono text-xs text-slate-500">
-                    ${h.avgPrice.toLocaleString()}
-                  </td>
-                  <td className={`px-6 py-5 text-right font-black text-sm tabular-nums ${h.price >= h.avgPrice ? 'text-emerald-500' : 'text-rose-500'}`}>
-                     {h.price >= h.avgPrice ? '▲' : '▼'} ${(h.amount * (h.price - h.avgPrice)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                  </td>
-                  <td className="px-6 py-5 text-right">
-                     <div className="flex flex-col items-end gap-1.5">
-                        <span className="text-[10px] font-black text-slate-500 font-mono">{((h.amount * h.price) / totalValue * 100).toFixed(1)}%</span>
-                        <div className="w-20 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                          <div className="h-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]" style={{ width: `${(h.amount * h.price) / totalValue * 100}%` }}></div>
-                        </div>
-                     </div>
-                  </td>
+          {holdings.length > 0 ? (
+            <table className="w-full text-left">
+              <thead className="bg-slate-950/50 text-[10px] uppercase text-slate-500 font-black tracking-widest border-b border-slate-800">
+                <tr>
+                  <th className="px-6 py-5">Asset</th>
+                  <th className="px-6 py-5 text-right">Balance</th>
+                  <th className="px-6 py-5 text-right">Value (USD)</th>
+                  <th className="px-6 py-5 text-right">Avg Buy Price</th>
+                  <th className="px-6 py-5 text-right">Profit / Loss</th>
+                  <th className="px-6 py-5 text-right">Allocation</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {holdings.map(h => (
+                  <tr key={h.id} className="hover:bg-slate-800/30 transition-colors group">
+                    <td className="px-6 py-5">
+                       <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-slate-950 border border-slate-800 rounded-2xl flex items-center justify-center font-black text-[10px] text-indigo-400 group-hover:text-indigo-300">
+                            {h.symbol}
+                          </div>
+                          <div>
+                             <div className="font-bold text-slate-100">{h.name}</div>
+                             <div className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">Pulse Verified</div>
+                          </div>
+                       </div>
+                    </td>
+                    <td className="px-6 py-5 text-right font-mono text-sm">
+                      {h.amount.toLocaleString(undefined, { maximumFractionDigits: 4 })} <span className="text-xs text-slate-500">{h.symbol}</span>
+                    </td>
+                    <td className="px-6 py-5 text-right font-mono text-sm font-bold text-slate-200 tabular-nums">
+                      ${(h.amount * h.price).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-6 py-5 text-right font-mono text-xs text-slate-500">
+                      ${h.avgPrice.toLocaleString()}
+                    </td>
+                    <td className={`px-6 py-5 text-right font-black text-sm tabular-nums ${h.price >= h.avgPrice ? 'text-emerald-500' : 'text-rose-500'}`}>
+                       {h.price >= h.avgPrice ? '▲' : '▼'} ${(h.amount * Math.abs(h.price - h.avgPrice)).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-6 py-5 text-right">
+                       <div className="flex flex-col items-end gap-1.5">
+                          <span className="text-[10px] font-black text-slate-500 font-mono">{(totalValue > 0 ? (h.amount * h.price) / totalValue * 100 : 0).toFixed(1)}%</span>
+                          <div className="w-20 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                            <div className="h-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]" style={{ width: `${totalValue > 0 ? (h.amount * h.price) / totalValue * 100 : 0}%` }}></div>
+                          </div>
+                       </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="p-20 flex flex-col items-center justify-center text-center space-y-4">
+               <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center text-2xl text-slate-500 mb-2">
+                 💼
+               </div>
+               <div>
+                 <h3 className="text-lg font-bold text-slate-200">No holdings found</h3>
+                 <p className="text-slate-500 text-sm mt-1">Start by depositing assets into your portfolio tracking engine.</p>
+               </div>
+               <button 
+                 onClick={() => setShowModal(true)}
+                 className="px-6 py-2 bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded-xl text-xs font-bold transition-all border border-indigo-500/20"
+               >
+                 Deposit First Asset
+               </button>
+            </div>
+          )}
         </div>
       </section>
+
+      {/* Deposit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setShowModal(false)}></div>
+          <div className="relative bg-slate-900 border border-slate-800 rounded-[2.5rem] w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95 duration-300">
+             <div className="flex justify-between items-center mb-8">
+                <h2 className="text-xl font-black tracking-tight flex items-center gap-3">
+                   <span className="w-2 h-6 bg-indigo-500 rounded-full"></span>
+                   Deposit Assets
+                </h2>
+                <button onClick={() => setShowModal(false)} className="text-slate-500 hover:text-white transition-colors">✕</button>
+             </div>
+
+             <form onSubmit={handleDeposit} className="space-y-6">
+                <div className="space-y-2">
+                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Select Asset</label>
+                   <select 
+                      value={selectedCoinId}
+                      onChange={(e) => {
+                        setSelectedCoinId(e.target.value);
+                        const coin = coins.find(c => c.id === e.target.value);
+                        if (coin) setBuyPrice(coin.price.toString());
+                      }}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 text-sm font-bold text-slate-200 focus:outline-none focus:border-indigo-500 transition-all appearance-none"
+                      required
+                   >
+                      <option value="">Select a coin...</option>
+                      {coins.map(c => (
+                        <option key={c.id} value={c.id}>{c.name} ({c.symbol})</option>
+                      ))}
+                   </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                   <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Quantity</label>
+                      <input 
+                        type="number" 
+                        step="any"
+                        placeholder="0.00"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 text-sm font-mono font-bold focus:outline-none focus:border-indigo-500 text-slate-200"
+                        required
+                      />
+                   </div>
+                   <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Avg Buy Price</label>
+                      <input 
+                        type="number" 
+                        step="any"
+                        placeholder="Price..."
+                        value={buyPrice}
+                        onChange={(e) => setBuyPrice(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-4 text-sm font-mono font-bold focus:outline-none focus:border-indigo-500 text-slate-200"
+                        required
+                      />
+                   </div>
+                </div>
+
+                <div className="bg-slate-950/50 p-4 rounded-2xl border border-slate-800">
+                   <div className="flex justify-between text-xs font-bold mb-1">
+                      <span className="text-slate-500 uppercase tracking-widest">Est. Valuation</span>
+                      <span className="text-indigo-400 font-mono">
+                        ${(parseFloat(amount || '0') * parseFloat(buyPrice || '0')).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      </span>
+                   </div>
+                   <p className="text-[9px] text-slate-600 leading-relaxed font-medium">
+                     Assets are indexed into your personal pulse database for real-time PnL tracking and risk reporting.
+                   </p>
+                </div>
+
+                <button 
+                  type="submit"
+                  className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl shadow-indigo-600/20 transition-all active:scale-95"
+                >
+                  Confirm Deposit
+                </button>
+             </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
