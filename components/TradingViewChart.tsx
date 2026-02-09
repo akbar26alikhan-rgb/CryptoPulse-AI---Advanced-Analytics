@@ -4,9 +4,19 @@ import React, { useEffect, useRef } from 'react';
 interface TradingViewChartProps {
   symbol: string;
   interval: string;
+  activeIndicators: string[];
 }
 
-const TradingViewChart: React.FC<TradingViewChartProps> = ({ symbol, interval }) => {
+const INDICATOR_STUDY_MAP: Record<string, string> = {
+  'SMA': 'MASimple@tv-basicstudies',
+  'EMA': 'MAExp@tv-basicstudies',
+  'RSI': 'RSI@tv-basicstudies',
+  'MACD': 'MACD@tv-basicstudies',
+  'BB': 'BB@tv-basicstudies',
+  'Volume': 'Volume@tv-basicstudies'
+};
+
+const TradingViewChart: React.FC<TradingViewChartProps> = ({ symbol, interval, activeIndicators }) => {
   const container = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -19,10 +29,14 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({ symbol, interval })
         container.current.innerHTML = '';
         
         const widgetContainer = document.createElement('div');
-        widgetContainer.id = `tv_chart_${symbol}_${interval}_inner`;
+        widgetContainer.id = `tv_chart_${symbol}_${interval}_${activeIndicators.join('_')}_inner`;
         widgetContainer.style.height = '100%';
         widgetContainer.style.width = '100%';
         container.current.appendChild(widgetContainer);
+
+        const studies = activeIndicators
+          .map(id => INDICATOR_STUDY_MAP[id])
+          .filter(Boolean);
 
         new (window as any).TradingView.widget({
           "autosize": true,
@@ -40,11 +54,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({ symbol, interval })
           "container_id": widgetContainer.id,
           "backgroundColor": "#0f172a",
           "gridColor": "rgba(30, 41, 59, 0.2)",
-          "studies": [
-            "MASimple@tv-basicstudies",
-            "RSI@tv-basicstudies",
-            "Volume@tv-basicstudies"
-          ],
+          "studies": studies,
           "disabled_features": ["header_screenshot", "header_symbol_search"],
           "enabled_features": ["study_templates"],
           "overrides": {
@@ -79,7 +89,7 @@ const TradingViewChart: React.FC<TradingViewChartProps> = ({ symbol, interval })
         container.current.innerHTML = '';
       }
     };
-  }, [symbol, interval]);
+  }, [symbol, interval, activeIndicators]);
 
   return (
     <div className="bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden h-[600px] flex flex-col shadow-2xl">

@@ -1,12 +1,13 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import MarketScanner from './components/MarketScanner';
 import Signals from './components/Signals';
 import CoinDetail from './components/CoinDetail';
 import Portfolio from './components/Portfolio';
-import { MOCK_COINS } from './mockData';
+import { fetchLiveMarketData, fetchGlobalStats } from './services/marketData';
+import { Coin } from './types';
 
 export type View = 'dashboard' | 'scanner' | 'signals' | 'portfolio' | 'detail';
 
@@ -30,9 +31,59 @@ function App() {
   const [selectedCoinId, setSelectedCoinId] = useState<string | null>(null);
   const [alerts, setAlerts] = useState<PriceAlert[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [simulatedPrices, setSimulatedPrices] = useState<Record<string, number>>(
-    Object.fromEntries(MOCK_COINS.map(c => [c.id, c.price]))
-  );
+  const [coins, setCoins] = useState<Coin[]>([]);
+  const [globalStats, setGlobalStats] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [livePrices, setLivePrices] = useState<Record<string, number>>({});
+  
+  const ws = useRef<WebSocket | null>(null);
+
+  // Initial Data Fetch
+  useEffect(() => {
+    async function init() {
+      const [marketData, stats] = await Promise.all([
+        fetchLiveMarketData(),
+        fetchGlobalStats()
+      ]);
+      setCoins(marketData);
+      setGlobalStats(stats);
+      setLivePrices(Object.fromEntries(marketData.map(c => [c.id, c.price])));
+      setIsLoading(false);
+    }
+    init();
+  }, []);
+
+  // WebSocket Live Updates
+  useEffect(() => {
+    if (isLoading || coins.length === 0) return;
+
+    ws.current = new WebSocket('wss://stream.binance.com:9443/ws/!ticker@arr');
+
+    ws.current.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (Array.isArray(data)) {
+        const updates: Record<string, number> = {};
+        data.forEach((ticker: any) => {
+          const baseSymbol = ticker.s.replace('USDT', '');
+          const coin = coins.find(c => c.symbol === baseSymbol);
+          if (coin) {
+            updates[coin.id] = parseFloat(ticker.c);
+          }
+        });
+        
+        if (Object.keys(updates).length > 0) {
+          setLivePrices(prev => ({ ...prev, ...updates }));
+        }
+      }
+    };
+
+    ws.current.onerror = (err) => console.error('WebSocket Error:', err);
+    ws.current.onclose = () => console.log('WebSocket Closed. Reconnecting...');
+
+    return () => {
+      if (ws.current) ws.current.close();
+    };
+  }, [isLoading, coins]);
 
   const navigateToCoin = (coinId: string) => {
     setSelectedCoinId(coinId);
@@ -61,28 +112,11 @@ function App() {
     }, 5000);
   };
 
-  // Price Simulation & Alert Checking
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setSimulatedPrices(prev => {
-        const next = { ...prev };
-        Object.keys(next).forEach(id => {
-          // Volatility simulation: +/- 0.1% change
-          const change = 1 + (Math.random() * 0.002 - 0.001);
-          next[id] = next[id] * change;
-        });
-        return next;
-      });
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, []);
-
   // Alert Monitor
   useEffect(() => {
     alerts.forEach(alert => {
       if (!alert.active) return;
-      const currentPrice = simulatedPrices[alert.coinId];
+      const currentPrice = livePrices[alert.coinId];
       if (!currentPrice) return;
 
       const triggered = 
@@ -91,34 +125,49 @@ function App() {
 
       if (triggered) {
         addNotification(`🚨 ALERT: ${alert.symbol} has crossed $${alert.targetPrice.toLocaleString()}!`, 'alert');
-        // Deactivate alert after trigger to prevent spam
         setAlerts(prev => prev.map(a => a.id === alert.id ? { ...a, active: false } : a));
       }
     });
-  }, [simulatedPrices, alerts]);
+  }, [livePrices, alerts]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center space-y-6">
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
+          <div className="absolute inset-0 flex items-center justify-center font-bold text-xs text-indigo-400 font-mono">LIVE</div>
+        </div>
+        <div className="text-center">
+          <h2 className="text-xl font-bold text-white tracking-tight">Initializing Analysis Engine</h2>
+          <p className="text-slate-500 text-sm mt-1">Establishing high-fidelity market streams...</p>
+        </div>
+      </div>
+    );
+  }
 
   const renderView = () => {
     switch (activeView) {
       case 'dashboard':
-        return <Dashboard onCoinSelect={navigateToCoin} />;
+        return <Dashboard coins={coins} livePrices={livePrices} onCoinSelect={navigateToCoin} />;
       case 'scanner':
-        return <MarketScanner onCoinSelect={navigateToCoin} />;
+        return <MarketScanner coins={coins} livePrices={livePrices} onCoinSelect={navigateToCoin} />;
       case 'signals':
-        return <Signals onCoinSelect={navigateToCoin} />;
+        return <Signals coins={coins} livePrices={livePrices} onCoinSelect={navigateToCoin} />;
       case 'detail':
         return selectedCoinId ? (
           <CoinDetail 
             coinId={selectedCoinId} 
-            currentPrice={simulatedPrices[selectedCoinId]} 
+            coins={coins}
+            currentPrice={livePrices[selectedCoinId]} 
             onAddAlert={addAlert}
             onRemoveAlert={removeAlert}
             activeAlerts={alerts.filter(a => a.coinId === selectedCoinId)}
           />
-        ) : <Dashboard onCoinSelect={navigateToCoin} />;
+        ) : <Dashboard coins={coins} livePrices={livePrices} onCoinSelect={navigateToCoin} />;
       case 'portfolio':
-        return <Portfolio />;
+        return <Portfolio coins={coins} livePrices={livePrices} />;
       default:
-        return <Dashboard onCoinSelect={navigateToCoin} />;
+        return <Dashboard coins={coins} livePrices={livePrices} onCoinSelect={navigateToCoin} />;
     }
   };
 
@@ -128,6 +177,7 @@ function App() {
       setView={setActiveView} 
       notifications={notifications}
       removeNotification={(id) => setNotifications(prev => prev.filter(n => n.id !== id))}
+      globalStats={globalStats}
     >
       {renderView()}
     </Layout>

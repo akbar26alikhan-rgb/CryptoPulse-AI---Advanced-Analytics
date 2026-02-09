@@ -12,17 +12,17 @@ export const MOCK_COINS: Coin[] = [
   { id: 'dogecoin', symbol: 'DOGE', name: 'Dogecoin', price: 0.124, change24h: 8.92, volume24h: 2100000000, marketCap: 18000000000, category: 'Meme' },
 ];
 
-export const getMockIndicators = (symbol: string): Indicators => ({
+export const getMockIndicators = (price: number = 0): Indicators => ({
   rsi: Math.floor(Math.random() * 60) + 20,
-  ema50: MOCK_COINS.find(c => c.symbol === symbol)?.price! * 0.98,
-  ema200: MOCK_COINS.find(c => c.symbol === symbol)?.price! * 0.95,
+  ema50: price * 0.98,
+  ema200: price * 0.95,
   macd: { value: 0.5, signal: 0.3, histogram: 0.2 },
-  atr: MOCK_COINS.find(c => c.symbol === symbol)?.price! * 0.02,
+  atr: price * 0.02,
   adx: 28,
   bollinger: { 
-    upper: MOCK_COINS.find(c => c.symbol === symbol)?.price! * 1.05, 
-    lower: MOCK_COINS.find(c => c.symbol === symbol)?.price! * 0.95, 
-    middle: MOCK_COINS.find(c => c.symbol === symbol)?.price! 
+    upper: price * 1.05, 
+    lower: price * 0.95, 
+    middle: price 
   },
 });
 
@@ -46,15 +46,5 @@ export const MOCK_SIGNALS: CryptoSignal[] = [
     stopLoss: 141.2,
     targets: [152, 158],
     reasons: ['Supertrend Buy Zone', 'ADX Strength > 25']
-  },
-  {
-    coinId: 'ethereum',
-    type: 'NEUTRAL',
-    score: 52,
-    timeframe: '4h',
-    entryPrice: 2640,
-    stopLoss: 2580,
-    targets: [2720, 2800],
-    reasons: ['RSI Overbought Pullback', 'Support Level Holding']
   }
 ];

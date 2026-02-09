@@ -8,15 +8,34 @@ interface LayoutProps {
   setView: (v: View) => void;
   notifications: Notification[];
   removeNotification: (id: string) => void;
+  globalStats?: {
+    totalCap: number;
+    totalVolume: number;
+    btcDominance: number;
+    activeCryptos: number;
+  };
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, activeView, setView, notifications, removeNotification }) => {
+const Layout: React.FC<LayoutProps> = ({ 
+  children, 
+  activeView, 
+  setView, 
+  notifications, 
+  removeNotification,
+  globalStats 
+}) => {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'scanner', label: 'Scanner', icon: '🔍' },
     { id: 'signals', label: 'Signals', icon: '⚡' },
     { id: 'portfolio', label: 'Portfolio', icon: '💼' },
   ];
+
+  const formatLargeNumber = (num: number) => {
+    if (num >= 1e12) return `$${(num / 1e12).toFixed(2)}T`;
+    if (num >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
+    return `$${num.toLocaleString()}`;
+  };
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-200">
@@ -64,7 +83,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setView, notifica
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 relative">
-        {/* Notification Toaster */}
         <div className="fixed top-20 right-8 z-[60] space-y-3 pointer-events-none w-80">
           {notifications.map(n => (
             <div 
@@ -94,19 +112,19 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setView, notifica
         </div>
 
         <header className="h-16 border-b border-slate-800 flex items-center justify-between px-8 bg-slate-950/50 backdrop-blur-md sticky top-0 z-50">
-          <div className="flex items-center gap-4 text-sm">
-             <div className="flex gap-4">
-                <span className="text-slate-500">Global Cap: <span className="text-slate-300 font-medium">$2.45T</span></span>
-                <span className="text-slate-500">24h Vol: <span className="text-slate-300 font-medium">$84.2B</span></span>
-                <span className="text-slate-500">BTC Dom: <span className="text-slate-300 font-medium">54.2%</span></span>
+          <div className="flex items-center gap-4 text-sm overflow-hidden">
+             <div className="flex gap-6 whitespace-nowrap">
+                <span className="text-slate-500">Global Cap: <span className="text-slate-200 font-mono text-xs">{globalStats ? formatLargeNumber(globalStats.totalCap) : '...'}</span></span>
+                <span className="text-slate-500">24h Vol: <span className="text-slate-200 font-mono text-xs">{globalStats ? formatLargeNumber(globalStats.totalVolume) : '...'}</span></span>
+                <span className="text-slate-500">BTC Dom: <span className="text-slate-200 font-mono text-xs">{globalStats ? globalStats.btcDominance.toFixed(1) : '...'}%</span></span>
              </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-shrink-0">
             <div className="flex items-center gap-2 text-sm bg-slate-900 px-3 py-1.5 rounded-full border border-slate-800">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="text-slate-300">Live API</span>
+              <span className="text-[10px] font-bold text-slate-300 uppercase">Live Pulse</span>
             </div>
-            <button className="p-2 hover:bg-slate-900 rounded-full text-slate-400"><span className="text-xl">🔔</span></button>
+            <button className="p-2 hover:bg-slate-900 rounded-full text-slate-400"><span>🔔</span></button>
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-xs font-bold border border-slate-800">
               AD
             </div>
